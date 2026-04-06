@@ -5,6 +5,9 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build:
     runs-on: macos-latest
@@ -21,10 +24,11 @@ jobs:
 
       - name: Setup iOS SDK
         run: |
-          if [ ! -d "/opt/theos/sdks/iPhoneOS14.5.sdk" ]; then
-            git clone https://github.com/theos/sdks.git /tmp/sdks
-            cp -r /tmp/sdks/*.sdk /opt/theos/sdks/
-          fi
+          mkdir -p /opt/theos/sdks
+          # Only download the specific iPhoneOS SDK to avoid errors
+          curl -LO https://github.com/theos/sdks/raw/master/iPhoneOS14.5.sdk.zip
+          unzip -q iPhoneOS14.5.sdk.zip -d /opt/theos/sdks/
+          rm iPhoneOS14.5.sdk.zip
           
       - name: Build Vantage
         run: |
