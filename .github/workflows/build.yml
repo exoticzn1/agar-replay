@@ -24,15 +24,17 @@ jobs:
 
       - name: Setup iOS SDK
         run: |
+          # Use a mirror that allows direct cloning of single SDKs
+          git clone --depth 1 https://github.com/theos/sdks.git /tmp/sdks
           mkdir -p /opt/theos/sdks
-          # Only download the specific iPhoneOS SDK to avoid errors
-          curl -LO https://github.com/theos/sdks/raw/master/iPhoneOS14.5.sdk.zip
-          unzip -q iPhoneOS14.5.sdk.zip -d /opt/theos/sdks/
-          rm iPhoneOS14.5.sdk.zip
+          # Move only the iPhoneOS SDKs to the proper folder
+          mv /tmp/sdks/iPhoneOS*.sdk /opt/theos/sdks/
           
       - name: Build Vantage
         run: |
           export THEOS=/opt/theos
+          # Clean before building to ensure no stale files
+          make clean
           make package FINALPACKAGE=1
           
       - name: Upload Artifact
