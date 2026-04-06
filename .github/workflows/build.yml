@@ -15,6 +15,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install Dependencies
+        run: |
+          brew install ldid xz
+
       - name: Install Theos
         run: |
           sudo git clone --recursive https://github.com/theos/theos.git /opt/theos
@@ -24,16 +28,13 @@ jobs:
 
       - name: Setup iOS SDK
         run: |
-          # Use a mirror that allows direct cloning of single SDKs
-          git clone --depth 1 https://github.com/theos/sdks.git /tmp/sdks
           mkdir -p /opt/theos/sdks
-          # Move only the iPhoneOS SDKs to the proper folder
+          git clone --depth 1 https://github.com/theos/sdks.git /tmp/sdks
           mv /tmp/sdks/iPhoneOS*.sdk /opt/theos/sdks/
           
       - name: Build Vantage
         run: |
           export THEOS=/opt/theos
-          # Clean before building to ensure no stale files
           make clean
           make package FINALPACKAGE=1
           
