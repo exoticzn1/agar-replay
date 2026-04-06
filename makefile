@@ -7,6 +7,7 @@ TWEAK_NAME = Vantage
 
 Vantage_FILES = Tweak.x
 Vantage_FRAMEWORKS = UIKit ReplayKit AVFoundation Photos CoreMedia
-Vantage_CFLAGS = -fobjc-arc
+# This line below prevents warnings from being treated as errors
+Vantage_CFLAGS = -fobjc-arc -Wno-deprecated-declarations -Wno-error
 
 include $(THEOS_MAKE_PATH)/tweak.mk
