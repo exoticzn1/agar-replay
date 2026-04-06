@@ -14,7 +14,7 @@
 @interface VantageManager : NSObject
 @property (nonatomic, strong) NSMutableArray *buffer;
 @property (nonatomic, strong) NSMutableArray<VantageClip *> *internalClips;
-@property (nonatomic, assign) int clipDuration; // 30 or 60
+@property (nonatomic, assign) int clipDuration;
 @property (nonatomic, assign) BOOL isClippingEnabled;
 + (instancetype)shared;
 - (void)processClip;
@@ -33,25 +33,9 @@
         _buffer = [NSMutableArray new];
         _internalClips = [NSMutableArray new];
         _clipDuration = 30;
+        _isClippingEnabled = YES;
     }
     return self;
-}
-
-- (void)startBuffering {
-    [[RPScreenRecorder sharedRecorder] startCaptureWithHandler:^(CMSampleBufferRef sampleBuffer, RPSampleBufferType bufferType, NSError *error) {
-        if (bufferType == RPSampleBufferTypeVideo && _isClippingEnabled) {
-            CFRetain(sampleBuffer);
-            dispatch_async(dispatch_get_main_queue(), ^{
-                [self.buffer addObject:(__bridge id)sampleBuffer];
-                CMSampleBufferRef first = (__bridge CMSampleBufferRef)self.buffer.firstObject;
-                if (CMTimeGetSeconds(CMSampleBufferGetPresentationTimeStamp(sampleBuffer)) - CMTimeGetSeconds(CMSampleBufferGetPresentationTimeStamp(first)) > self.clipDuration) {
-                    CMSampleBufferRef old = (__bridge CMSampleBufferRef)self.buffer.firstObject;
-                    [self.buffer removeObjectAtIndex:0];
-                    CFRelease(old);
-                }
-            });
-        }
-    } completionHandler:nil];
 }
 
 - (void)processClip {
@@ -86,13 +70,22 @@
 @property (nonatomic, strong) UIButton *menuButton;
 @property (nonatomic, strong) UIButton *clipButton;
 @property (nonatomic, assign) BOOL moveMode;
++ (instancetype)shared;
 @end
 
 @implementation VantageUI
++ (instancetype)shared {
+    static VantageUI *shared = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{ shared = [[VantageUI alloc] init]; });
+    return shared;
+}
+
 - (instancetype)init {
     self = [super initWithFrame:[UIScreen mainScreen].bounds];
     if (self) {
         self.userInteractionEnabled = NO;
+        _moveMode = NO;
         [self setupButtons];
         [self setupMenu];
     }
@@ -100,7 +93,6 @@
 }
 
 - (void)setupButtons {
-    // Top Left Menu Button (The Logo)
     _menuButton = [UIButton buttonWithType:UIButtonTypeCustom];
     _menuButton.frame = CGRectMake(30, 50, 60, 60);
     _menuButton.layer.cornerRadius = 30;
@@ -109,14 +101,13 @@
     [_menuButton addTarget:self action:@selector(toggleMenu) forControlEvents:UIControlEventTouchUpInside];
     [self addSubview:_menuButton];
 
-    // Top Middle Clip Button
     _clipButton = [UIButton buttonWithType:UIButtonTypeSystem];
     _clipButton.frame = CGRectMake(self.frame.size.width/2 - 40, 50, 80, 40);
-    _clipButton.backgroundColor = [UIColor colorWithRed:0.0 green:0.5 blue:0.6 alpha:0.8];
+    _clipButton.backgroundColor = [[UIColor colorWithRed:0.0 green:0.5 blue:0.6 alpha:0.8] colorWithAlphaComponent:0.8];
     [_clipButton setTitle:@"CLIP" forState:UIControlStateNormal];
     [_clipButton setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
     _clipButton.layer.cornerRadius = 10;
-    _clipButton.hidden = YES;
+    _clipButton.hidden = NO;
     [_clipButton addTarget:self action:@selector(doClip) forControlEvents:UIControlEventTouchUpInside];
     
     UIPanGestureRecognizer *pan = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handlePan:)];
@@ -135,8 +126,6 @@
     _menuView.hidden = YES;
     [self addSubview:_menuView];
     
-    // Add Tabs: Clipping | Information
-    // (Logic for tab switching would go here)
     UILabel *title = [[UILabel alloc] initWithFrame:CGRectMake(10, 10, 280, 30)];
     title.text = @"VANTAGE - Made by exoticzn";
     title.textColor = [UIColor cyanColor];
@@ -155,15 +144,15 @@
 - (void)openDiscord { [[UIApplication sharedApplication] openURL:[NSURL URLWithString:@"https://discord.gg/wVfRnFTPwj"] options:@{} completionHandler:nil]; }
 
 - (void)handlePan:(UIPanGestureRecognizer *)p {
-    if (![VantageUI shared].moveMode) return;
+    if (!self.moveMode) return;
     CGPoint t = [p translationInView:self];
     p.view.center = CGPointMake(p.view.center.x + t.x, p.view.center.y + t.y);
     [p setTranslation:CGPointZero inView:self];
 }
 
 - (void)handlePinch:(UIPinchGestureRecognizer *)p {
-    if (![VantageUI shared].moveMode) return;
-    p.view.transform = CGAffineTransformScale(p.view.transform, p.view.scale, p.view.scale);
+    if (!self.moveMode) return;
+    p.view.transform = CGAffineTransformScale(p.view.transform, p.scale, p.scale);
     p.scale = 1.0;
 }
 @end
@@ -174,8 +163,18 @@
     %orig;
     static dispatch_once_t once;
     dispatch_once(&once, ^{
-        VantageUI *ui = [[VantageUI alloc] init];
-        [[[UIApplication sharedApplication] keyWindow] addSubview:ui];
+        UIWindow *window = nil;
+        if (@available(iOS 13.0, *)) {
+            for (UIWindowScene* windowScene in [UIApplication sharedApplication].connectedScenes) {
+                if (windowScene.activationState == UISceneActivationStateForegroundActive) {
+                    window = windowScene.windows.firstObject;
+                    break;
+                }
+            }
+        } else {
+            window = [UIApplication sharedApplication].keyWindow;
+        }
+        [window addSubview:[VantageUI shared]];
     });
 }
 %end
