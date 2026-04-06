@@ -1,0 +1,9 @@
+Package: com.exoticzn.vantage
+Name: Vantage
+Depends: mobilesubstrate
+Version: 1.0.0
+Architecture: iphoneos-arm
+Description: Vantage clipping tool for iOS.
+Maintainer: exoticzn
+Author: exoticzn
+Section: Tweaks
