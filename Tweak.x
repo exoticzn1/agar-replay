@@ -23,7 +23,6 @@
     return s;
 }
 
-// Fixed: Added a 2-second delay to prevent the "Multitasking" error on startup
 - (void)startBuffer {
     if (!self.isEnabled || self.recorder.isRecording) return;
     
@@ -32,8 +31,6 @@
         
         [self.recorder startRecordingWithHandler:^(NSError *error) {
             if (error) {
-                NSLog(@"[Vantage] Error: %@", error.localizedDescription);
-                // If it fails due to multitasking, we try one more time automatically
                 if (error.code == -5803) { 
                     [self startBuffer]; 
                 }
@@ -48,32 +45,27 @@
         return;
     }
 
-    // Vibrate to confirm tap
     UIImpactFeedbackGenerator *gen = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleMedium];
     [gen impactOccurred];
 
-    // Create unique filename
-    NSString *fileName = [NSString NSDate.date.description stringByAppendingString:@".mp4"];
+    // FIXED FILENAME LINE BELOW
+    NSString *dateStr = [[NSDate date] description];
+    NSString *fileName = [dateStr stringByAppendingString:@".mp4"];
     NSString *tempPath = [NSTemporaryDirectory() stringByAppendingPathComponent:fileName];
     NSURL *url = [NSURL fileURLWithPath:tempPath];
 
     [self.recorder stopRecordingWithOutputURL:url completionHandler:^(NSError *error) {
-        if (error) {
-            NSLog(@"[Vantage] Save Error: %@", error.localizedDescription);
-            return;
-        }
+        if (error) return;
         
         [[PHPhotoLibrary sharedPhotoLibrary] performChanges:^{
             [PHAssetChangeRequest creationRequestForAssetFromVideoAtFileURL:url];
         } completionHandler:^(BOOL success, NSError *phError) {
-            // Restart the background loop
             [self startBuffer];
         }];
     }];
 }
 @end
 
-// --- UI Logic (Keeping your Shark Style) ---
 @interface VantageUI : UIView
 @property (nonatomic, strong) UIView *menu;
 @property (nonatomic, strong) UIButton *logoBtn;
