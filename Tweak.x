@@ -3,14 +3,12 @@
 #import <Photos/Photos.h>
 #import <AVFoundation/AVFoundation.h>
 
-// --- Data Structure for Saved Clips ---
 @interface VantageClip : NSObject
 @property (nonatomic, strong) NSString *filePath;
 @property (nonatomic, strong) NSDate *timestamp;
 @end
 @implementation VantageClip @end
 
-// --- Core Manager ---
 @interface VantageManager : NSObject
 @property (nonatomic, strong) NSMutableArray *buffer;
 @property (nonatomic, strong) NSMutableArray<VantageClip *> *internalClips;
@@ -64,7 +62,6 @@
 }
 @end
 
-// --- UI Logic ---
 @interface VantageUI : UIView
 @property (nonatomic, strong) UIView *menuView;
 @property (nonatomic, strong) UIButton *menuButton;
@@ -103,7 +100,7 @@
 
     _clipButton = [UIButton buttonWithType:UIButtonTypeSystem];
     _clipButton.frame = CGRectMake(self.frame.size.width/2 - 40, 50, 80, 40);
-    _clipButton.backgroundColor = [[UIColor colorWithRed:0.0 green:0.5 blue:0.6 alpha:0.8] colorWithAlphaComponent:0.8];
+    _clipButton.backgroundColor = [UIColor colorWithRed:0.0 green:0.5 blue:0.6 alpha:0.8];
     [_clipButton setTitle:@"CLIP" forState:UIControlStateNormal];
     [_clipButton setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
     _clipButton.layer.cornerRadius = 10;
@@ -157,7 +154,6 @@
 }
 @end
 
-// --- Hooks ---
 %hook UIViewController
 - (void)viewDidAppear:(BOOL)animated {
     %orig;
@@ -171,8 +167,13 @@
                     break;
                 }
             }
-        } else {
+        } 
+        
+        if (!window) {
+            #pragma clang diagnostic push
+            #pragma clang diagnostic ignored "-Wdeprecated-declarations"
             window = [UIApplication sharedApplication].keyWindow;
+            #pragma clang diagnostic pop
         }
         [window addSubview:[VantageUI shared]];
     });
