@@ -2,7 +2,6 @@
 #import <ReplayKit/ReplayKit.h>
 #import <Photos/Photos.h>
 
-// --- Data Manager ---
 @interface VantageManager : NSObject
 @property (nonatomic, assign) float clipDuration;
 @property (nonatomic, assign) BOOL isEnabled;
@@ -26,7 +25,6 @@
 
 - (void)startBuffer {
     if (!self.isEnabled || self.recorder.isRecording) return;
-    // Delay to prevent crash on game load
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         if (!self.recorder.isAvailable) return;
         [self.recorder startRecordingWithHandler:^(NSError *error) {
@@ -57,12 +55,12 @@
 }
 @end
 
-// --- UI Logic ---
 @interface VantageUI : UIView
 @property (nonatomic, strong) UIView *menu;
 @property (nonatomic, strong) UIButton *logoBtn;
 @property (nonatomic, strong) UIButton *floatClipBtn;
 @property (nonatomic, strong) UILabel *sliderLabel;
+@property (nonatomic, strong) UIView *clippingPage;
 + (instancetype)shared;
 @end
 
@@ -93,7 +91,7 @@
 
 - (void)setupLogo {
     _logoBtn = [UIButton buttonWithType:UIButtonTypeCustom];
-    _logoBtn.frame = CGRectMake(50, 50, 60, 60);
+    _logoBtn.frame = CGRectMake(20, 40, 60, 60); // Top Left
     _logoBtn.layer.cornerRadius = 30;
     _logoBtn.backgroundColor = [UIColor colorWithWhite:0.1 alpha:0.5];
     [_logoBtn setBackgroundImage:[UIImage imageNamed:@"vantage_icon"] forState:UIControlStateNormal];
@@ -106,7 +104,7 @@
 
 - (void)setupFloatingButton {
     _floatClipBtn = [UIButton buttonWithType:UIButtonTypeSystem];
-    _floatClipBtn.frame = CGRectMake(self.frame.size.width/2 - 35, 100, 70, 70);
+    _floatClipBtn.frame = CGRectMake(self.frame.size.width - 100, 100, 70, 70);
     _floatClipBtn.layer.cornerRadius = 35;
     _floatClipBtn.backgroundColor = [[UIColor blackColor] colorWithAlphaComponent:0.2]; // 80% Transparent
     _floatClipBtn.layer.borderWidth = 1.5;
@@ -125,22 +123,23 @@
 }
 
 - (void)setupMenu {
-    _menu = [[UIView alloc] initWithFrame:CGRectMake(0,0,280,380)];
-    _menu.center = self.center;
-    _menu.backgroundColor = [UIColor colorWithRed:0.12 green:0.12 blue:0.12 alpha:0.98];
-    _menu.layer.cornerRadius = 15;
+    _menu = [[UIView alloc] initWithFrame:CGRectMake(20, 110, 280, 380)];
+    _menu.backgroundColor = [UIColor colorWithRed:0.15 green:0.15 blue:0.15 alpha:0.98];
+    _menu.layer.cornerRadius = 12;
     _menu.clipsToBounds = YES;
     _menu.hidden = YES;
     [self addSubview:_menu];
+    
+    UIPanGestureRecognizer *pan = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handlePan:)];
+    [_menu addGestureRecognizer:pan];
     
     UILabel *header = [[UILabel alloc] initWithFrame:CGRectMake(0,0,280,45)];
     header.text = @"Vantage";
     header.textAlignment = NSTextAlignmentCenter;
     header.textColor = [UIColor whiteColor];
-    header.backgroundColor = [UIColor colorWithWhite:0.05 alpha:1.0];
+    header.backgroundColor = [UIColor colorWithWhite:0.1 alpha:1.0];
     [_menu addSubview:header];
 
-    // Main Buttons
     [self createMenuBtn:@"Clipping" y:45 action:@selector(openClipPage)];
     [self createMenuBtn:@"Information" y:95 action:@selector(openInfoPage)];
 }
@@ -148,63 +147,63 @@
 - (void)createMenuBtn:(NSString *)title y:(float)y action:(SEL)action {
     UIButton *btn = [UIButton buttonWithType:UIButtonTypeSystem];
     btn.frame = CGRectMake(0, y, 280, 50);
-    [btn setTitle:[NSString stringWithFormat:@"  > %@", title] forState:UIControlStateNormal];
+    [btn setTitle:[NSString stringWithFormat:@"  %@                >", title] forState:UIControlStateNormal];
     [btn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
     btn.contentHorizontalAlignment = UIControlContentHorizontalAlignmentLeft;
-    btn.layer.borderWidth = 0.3;
-    btn.layer.borderColor = [UIColor darkGrayColor].CGColor;
+    btn.layer.borderWidth = 0.2;
+    btn.layer.borderColor = [UIColor grayColor].CGColor;
     [btn addTarget:self action:action forControlEvents:UIControlEventTouchUpInside];
     [_menu addSubview:btn];
 }
 
 - (void)openClipPage {
-    UIView *p = [[UIView alloc] initWithFrame:CGRectMake(0, 45, 280, 335)];
-    p.backgroundColor = [UIColor colorWithRed:0.12 green:0.12 blue:0.12 alpha:1.0];
-    [_menu addSubview:p];
+    _clippingPage = [[UIView alloc] initWithFrame:CGRectMake(0, 45, 280, 335)];
+    _clippingPage.backgroundColor = [VantageManager shared].isEnabled ? [UIColor lightGrayColor] : [UIColor colorWithRed:0.15 green:0.15 blue:0.15 alpha:1.0];
+    [_menu addSubview:_clippingPage];
 
     UILabel *l = [[UILabel alloc] initWithFrame:CGRectMake(20, 20, 150, 30)];
     l.text = @"Enable Clipping";
     l.textColor = [UIColor whiteColor];
-    [p addSubview:l];
+    [_clippingPage addSubview:l];
 
     UISwitch *sw = [[UISwitch alloc] initWithFrame:CGRectMake(210, 20, 0, 0)];
     sw.on = [VantageManager shared].isEnabled;
     [sw addTarget:self action:@selector(masterSw:) forControlEvents:UIControlEventValueChanged];
-    [p addSubview:sw];
+    [_clippingPage addSubview:sw];
 
     _sliderLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 70, 240, 20)];
     _sliderLabel.text = [NSString stringWithFormat:@"Duration: %.0fs", [VantageManager shared].clipDuration];
     _sliderLabel.textColor = [UIColor cyanColor];
-    [p addSubview:_sliderLabel];
+    [_clippingPage addSubview:_sliderLabel];
 
     UISlider *sl = [[UISlider alloc] initWithFrame:CGRectMake(20, 100, 240, 30)];
     sl.minimumValue = 15; sl.maximumValue = 60;
     sl.value = [VantageManager shared].clipDuration;
     [sl addTarget:self action:@selector(slMoved:) forControlEvents:UIControlEventValueChanged];
-    [p addSubview:sl];
+    [_clippingPage addSubview:sl];
 
     UIButton *saved = [UIButton buttonWithType:UIButtonTypeSystem];
     saved.frame = CGRectMake(0, 150, 280, 50);
-    [saved setTitle:@"  > Saved Clips" forState:UIControlStateNormal];
-    [saved setTitleColor:[UIColor lightGrayColor] forState:UIControlStateNormal];
+    [saved setTitle:@"  Saved Clips             >" forState:UIControlStateNormal];
+    [saved setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
     saved.contentHorizontalAlignment = UIControlContentHorizontalAlignmentLeft;
-    [p addSubview:saved];
+    [_clippingPage addSubview:saved];
 
     UIButton *back = [UIButton buttonWithType:UIButtonTypeSystem];
     back.frame = CGRectMake(0, 285, 280, 50);
     [back setTitle:@"Back" forState:UIControlStateNormal];
     [back addTarget:self action:@selector(closePage:) forControlEvents:UIControlEventTouchUpInside];
-    [p addSubview:back];
+    [_clippingPage addSubview:back];
 }
 
 - (void)openInfoPage {
     UIView *p = [[UIView alloc] initWithFrame:CGRectMake(0, 45, 280, 335)];
-    p.backgroundColor = [UIColor colorWithRed:0.12 green:0.12 blue:0.12 alpha:1.0];
+    p.backgroundColor = [UIColor colorWithRed:0.15 green:0.15 blue:0.15 alpha:1.0];
     [_menu addSubview:p];
 
     UILabel *txt = [[UILabel alloc] initWithFrame:CGRectMake(20, 40, 240, 100)];
     txt.numberOfLines = 0;
-    txt.text = @"Vantage\nMade by exoticzn\n\nDiscord: discord.gg/wVfRnFTPwj";
+    txt.text = @"Vantage\n\nDiscord: discord.gg/wVfRnFTPwj";
     txt.textColor = [UIColor whiteColor];
     txt.textAlignment = NSTextAlignmentCenter;
     [p addSubview:txt];
@@ -219,13 +218,15 @@
 - (void)masterSw:(UISwitch *)s { 
     [VantageManager shared].isEnabled = s.on; 
     _floatClipBtn.hidden = !s.on;
-    s.superview.backgroundColor = s.on ? [UIColor colorWithWhite:0.2 alpha:1.0] : [UIColor colorWithRed:0.12 green:0.12 blue:0.12 alpha:1.0];
+    _clippingPage.backgroundColor = s.on ? [UIColor colorWithWhite:0.3 alpha:1.0] : [UIColor colorWithRed:0.15 green:0.15 blue:0.15 alpha:1.0];
     if(s.on) [[VantageManager shared] startBuffer];
 }
+
 - (void)slMoved:(UISlider *)s { 
     [VantageManager shared].clipDuration = s.value; 
     _sliderLabel.text = [NSString stringWithFormat:@"Duration: %.0fs", s.value];
 }
+
 - (void)toggleMenu { _menu.hidden = !_menu.hidden; }
 - (void)closePage:(UIButton *)b { [b.superview removeFromSuperview]; }
 - (void)runClip { [[VantageManager shared] saveClip]; }
@@ -235,6 +236,7 @@
     p.view.center = CGPointMake(p.view.center.x + t.x, p.view.center.y + t.y);
     [p setTranslation:CGPointZero inView:self];
 }
+
 - (void)handlePinch:(UIPinchGestureRecognizer *)p {
     p.view.transform = CGAffineTransformScale(p.view.transform, p.scale, p.scale);
     p.scale = 1.0;
