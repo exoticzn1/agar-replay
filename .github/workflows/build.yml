@@ -21,7 +21,10 @@ jobs:
 
       - name: Setup iOS SDK
         run: |
-          git clone https://github.com/theos/sdks.git /opt/theos/sdks
+          if [ ! -d "/opt/theos/sdks/iPhoneOS14.5.sdk" ]; then
+            git clone https://github.com/theos/sdks.git /tmp/sdks
+            cp -r /tmp/sdks/*.sdk /opt/theos/sdks/
+          fi
           
       - name: Build Vantage
         run: |
